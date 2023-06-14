@@ -5,12 +5,14 @@ import { SignupInputDTO, SignupOutputDTO } from "../dtos/signup.dto"
 import { BadRequestError } from "../errors/BadRequestError"
 import { NotFoundError } from "../errors/NotFoundError"
 import { USER_ROLES, User } from "../models/User"
+import { TokenManagerUser, TokenPayloadSignup } from "../services/TokenManager"
 import { IdGenerator } from "../services/idGenerator"
 
 export class UserBusiness {
   constructor(
     private userDatabase: UserDatabase,
-    private idGenerator: IdGenerator
+    private idGenerator: IdGenerator,
+    private tokenManagerUser: TokenManagerUser
   ) { }
 
   public getUsers = async (
@@ -63,9 +65,20 @@ export class UserBusiness {
     const newUserDB = newUser.toDBModel()
     await this.userDatabase.insertUser(newUserDB)
 
+    const tokenPayload: TokenPayloadSignup = {
+      id: newUser.getId(),
+      name: newUser.getName(),
+      email: newUser.getEmail(),
+      password: newUser.getPassword(),
+      role: newUser.getRole(),
+      created_at: newUser.getCreatedAt()
+    }
+
+    const token = await this.tokenManagerUser.createTokenSignup(tokenPayload)
+
     const output: SignupOutputDTO = {
       message: "Cadastro realizado com sucesso",
-      token: "token"
+      token: token
     }
 
     return output
@@ -86,9 +99,11 @@ export class UserBusiness {
       throw new BadRequestError("'email' ou 'password' incorretos")
     }
 
+    const token = await this.tokenManagerUser.createTokenLogin(userDB)
+
     const output: LoginOutputDTO = {
       message: "Login realizado com sucesso",
-      token: "token"
+      token: token
     }
 
     return output
